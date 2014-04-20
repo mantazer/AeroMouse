@@ -1,13 +1,32 @@
 __author__ = 'muntaserahmed'
 
-import Leap
 import sys
-from Leap import CircleGesture, KeyTapGesture, ScreenTapGesture, SwipeGesture
+import Leap
 
 from pymouse import PyMouse
+from numpy import interp
 
-finger_mouse = PyMouse()
+# Initialize PyMouse object
 
+FINGER_MOUSE = PyMouse()
+
+# Grab screen size and x-axis, y-axis bounds
+
+SCREEN_SIZE = FINGER_MOUSE.screen_size();
+SCREEN_WIDTH_MIN = 0
+SCREEN_WIDTH_MAX = SCREEN_SIZE[0]   #1280
+SCREEN_HEIGHT_MIN = 0
+SCREEN_HEIGHT_MAX = SCREEN_SIZE[1]  #800
+
+# Predefined x-axis, y-axis bounds for Leap Motion Controller
+
+LEAP_WIDTH_MIN = -40
+LEAP_WIDTH_MAX = 40
+LEAP_HEIGHT_MIN = 100
+LEAP_HEIGHT_MAX = 180
+
+
+# Custom LeapListener implementation
 
 class LeapListener(Leap.Listener):
     def on_init(self, controller):
@@ -29,7 +48,6 @@ class LeapListener(Leap.Listener):
     def on_exit(self, controller):
         print "Exited"
 
-
     def on_frame(self, controller):
         # Get the most recent frame and report some basic information
         frame = controller.frame()
@@ -50,84 +68,45 @@ class LeapListener(Leap.Listener):
                     avg_pos += finger.tip_position
                 avg_pos /= len(fingers)
 
-                # print "Hand has %d fingers, average finger tip position: %s" % (
-                #     len(fingers), avg_pos)
-
+                # Grab average position on x, y, and z axes
                 x_pos = avg_pos[0]
                 y_pos = avg_pos[1]
                 z_pos = avg_pos[2]
 
-                print 'X: ' + str(x_pos) + ', Y: ' + str(y_pos) + 'Z: ' + str(z_pos)
-
-
-            # # Get the hand's sphere radius and palm position
-            # print "Hand sphere radius: %f mm, palm position: %s" % (
-            #     hand.sphere_radius, hand.palm_position)
-            #
-            # # Get the hand's normal vector and direction
-            # normal = hand.palm_normal
-            # direction = hand.direction
-            #
-            # # Calculate the hand's pitch, roll, and yaw angles
-            # print "Hand pitch: %f degrees, roll: %f degrees, yaw: %f degrees" % (
-            #     direction.pitch * Leap.RAD_TO_DEG,
-            #     normal.roll * Leap.RAD_TO_DEG,
-            #     direction.yaw * Leap.RAD_TO_DEG)
-
-            # # Gestures
-            # for gesture in frame.gestures():
-            #     if gesture.type == Leap.Gesture.TYPE_CIRCLE:
-            #         circle = CircleGesture(gesture)
-            #
-            #         # Determine clock direction using the angle between the pointable and the circle normal
-            #         if circle.pointable.direction.angle_to(circle.normal) <= Leap.PI / 4:
-            #             clockwiseness = "clockwise"
-            #         else:
-            #             clockwiseness = "counterclockwise"
-            #
-            #         # Calculate the angle swept since the last frame
-            #         swept_angle = 0
-            #         if circle.state != Leap.Gesture.STATE_START:
-            #             previous_update = CircleGesture(controller.frame(1).gesture(circle.id))
-            #             swept_angle = (circle.progress - previous_update.progress) * 2 * Leap.PI
-            #
-            #         print "Circle id: %d, %s, progress: %f, radius: %f, angle: %f degrees, %s" % (
-            #             gesture.id, self.state_string(gesture.state),
-            #             circle.progress, circle.radius, swept_angle * Leap.RAD_TO_DEG, clockwiseness)
-            #
-            #     if gesture.type == Leap.Gesture.TYPE_SWIPE:
-            #         swipe = SwipeGesture(gesture)
-            #         print "Swipe id: %d, state: %s, position: %s, direction: %s, speed: %f" % (
-            #             gesture.id, self.state_string(gesture.state),
-            #             swipe.position, swipe.direction, swipe.speed)
-            #
-            #     if gesture.type == Leap.Gesture.TYPE_KEY_TAP:
-            #         keytap = KeyTapGesture(gesture)
-            #         print "Key Tap id: %d, %s, position: %s, direction: %s" % (
-            #             gesture.id, self.state_string(gesture.state),
-            #             keytap.position, keytap.direction )
-            #
-            #     if gesture.type == Leap.Gesture.TYPE_SCREEN_TAP:
-            #         screentap = ScreenTapGesture(gesture)
-            #         print "Screen Tap id: %d, %s, position: %s, direction: %s" % (
-            #             gesture.id, self.state_string(gesture.state),
-            #             screentap.position, screentap.direction )
+                # Call the move_cursor function to perform calculations and move the cursor
+                move_cursor(x_pos, y_pos)
 
         if not (frame.hands.is_empty and frame.gestures().is_empty):
             print ""
 
-    # def state_string(self, state):
-    #     if state == Leap.Gesture.STATE_START:
-    #         return "STATE_START"
-    #
-    #     if state == Leap.Gesture.STATE_UPDATE:
-    #         return "STATE_UPDATE"
-    #
-    #     if state == Leap.Gesture.STATE_STOP:
-    #         return "STATE_STOP"
-    #
-    #     if state == Leap.Gesture.STATE_INVALID:
-    #         return "STATE_INVALID"
+
+def move_cursor(x_pos, y_pos):
+
+    # If x-axis data from controller is outside the bounds, default them
+
+    if x_pos < LEAP_WIDTH_MIN:
+        scaled_x = SCREEN_WIDTH_MIN
+    elif x_pos > LEAP_WIDTH_MAX:
+        scaled_x = SCREEN_WIDTH_MAX
+    else:
+        # Linear interpolation from the controller's x-axis range to the screen width
+        scaled_x = interp(x_pos, [LEAP_WIDTH_MIN, LEAP_WIDTH_MAX], [SCREEN_WIDTH_MIN, SCREEN_WIDTH_MAX])
+
+    # If y-axis data from controller is outside bounds, default them
+
+    if y_pos < LEAP_HEIGHT_MIN:
+        scaled_y = SCREEN_HEIGHT_MIN
+    elif y_pos > LEAP_HEIGHT_MAX:
+        scaled_y = SCREEN_HEIGHT_MAX
+    else:
+        # Linear interpolation from the controller's y-axis range to the screen height
+        scaled_y = interp(y_pos, [LEAP_HEIGHT_MIN, LEAP_HEIGHT_MAX], [SCREEN_HEIGHT_MAX, SCREEN_HEIGHT_MIN])
+
+    print 'SCALED X: ' + str(scaled_x) + ',  SCALED Y: ' + str(scaled_y)
+
+    # Move
+
+    FINGER_MOUSE.move(scaled_x, scaled_y)
 
 
 def main():
