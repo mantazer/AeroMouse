@@ -3,16 +3,20 @@ __author__ = 'muntaserahmed'
 import sys
 import Leap
 
+from Leap import ScreenTapGesture, SwipeGesture
 from pymouse import PyMouse
+from pykeyboard import PyKeyboard
 from numpy import interp
 
 # Initialize PyMouse object
 
-FINGER_MOUSE = PyMouse()
+AERO_MOUSE = PyMouse()
+AERO_GESTURES = PyKeyboard()
+
 
 # Grab screen size and x-axis, y-axis bounds
 
-SCREEN_SIZE = FINGER_MOUSE.screen_size();
+SCREEN_SIZE = AERO_MOUSE.screen_size()
 SCREEN_WIDTH_MIN = 0
 SCREEN_WIDTH_MAX = SCREEN_SIZE[0]   #1280
 SCREEN_HEIGHT_MIN = 0
@@ -73,14 +77,62 @@ class LeapListener(Leap.Listener):
                 y_pos = avg_pos[1]
                 z_pos = avg_pos[2]
 
-                # Call the move_cursor function to perform calculations and move the cursor
-                move_cursor(x_pos, y_pos)
+                # Call the calc_position function to get scaled coordinates,
+                scaled_x, scaled_y = calc_position(x_pos, y_pos)
+
+                # Move the cursor
+                AERO_MOUSE.move(scaled_x, scaled_y)
+
+            #Gestures
+            for gesture in frame.gestures():
+                if gesture.type == Leap.Gesture.TYPE_SCREEN_TAP:
+                    screen_tap = ScreenTapGesture(gesture)
+
+                    print "Screen Tap id: %d, %s, position: %s, direction: %s" % (
+                        gesture.id, self.state_string(gesture.state),
+                        screen_tap.position, screen_tap.direction)
+
+                    x_pos = screen_tap.position[0]
+                    y_pos = screen_tap.position[1]
+                    z_pos = screen_tap.position[2]
+
+                    scaled_x, scaled_y = calc_position(x_pos, y_pos)
+
+                    AERO_MOUSE.click(scaled_x, scaled_y)
+
+                if gesture.type == Leap.Gesture.TYPE_SWIPE:
+                    swipe = SwipeGesture(gesture)
+                    print "Swipe id: %d, state: %s, position: %s, direction: %s, speed: %f" % (
+                        gesture.id, self.state_string(gesture.state),
+                        swipe.position, swipe.direction, swipe.speed)
+
+                    # Swipe Left -> Right
+                    if swipe.position[0] > 0 and swipe.state == gesture.STATE_START:     # Swipe Left to Right (->)
+                        print "Swiped Right"
+                    elif swipe.position[0] < 0 and swipe.state == gesture.STATE_START:   # Swipe Right to Left (<-)
+                        print "Swiped Left"
+                    else:
+                        pass    # do nothing
+
 
         if not (frame.hands.is_empty and frame.gestures().is_empty):
             print ""
 
+    def state_string(self, state):
+        if state == Leap.Gesture.STATE_START:
+            return "STATE_START"
 
-def move_cursor(x_pos, y_pos):
+        if state == Leap.Gesture.STATE_UPDATE:
+            return "STATE_UPDATE"
+
+        if state == Leap.Gesture.STATE_STOP:
+            return "STATE_STOP"
+
+        if state == Leap.Gesture.STATE_INVALID:
+            return "STATE_INVALID"
+
+
+def calc_position(x_pos, y_pos):
 
     # If x-axis data from controller is outside the bounds, default them
 
@@ -106,7 +158,7 @@ def move_cursor(x_pos, y_pos):
 
     # Move
 
-    FINGER_MOUSE.move(scaled_x, scaled_y)
+    return scaled_x, scaled_y
 
 
 def main():
