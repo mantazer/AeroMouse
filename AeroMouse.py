@@ -8,6 +8,9 @@ from pymouse import PyMouse
 from pykeyboard import PyKeyboard
 from numpy import interp
 
+import threading
+from threading import Thread
+
 # Initialize PyMouse object
 
 AERO_MOUSE = PyMouse()
@@ -18,9 +21,9 @@ AERO_GESTURES = PyKeyboard()
 
 SCREEN_SIZE = AERO_MOUSE.screen_size()
 SCREEN_WIDTH_MIN = 0
-SCREEN_WIDTH_MAX = SCREEN_SIZE[0]   #1280
+SCREEN_WIDTH_MAX = SCREEN_SIZE[0]
 SCREEN_HEIGHT_MIN = 0
-SCREEN_HEIGHT_MAX = SCREEN_SIZE[1]  #800
+SCREEN_HEIGHT_MAX = SCREEN_SIZE[1]
 
 # Predefined x-axis, y-axis bounds for Leap Motion Controller
 
@@ -109,11 +112,12 @@ class LeapListener(Leap.Listener):
                     # Swipe Left -> Right
                     if swipe.position[0] > 0 and swipe.state == gesture.STATE_START:     # Swipe Left to Right (->)
                         print "Swiped Right"
+
                     elif swipe.position[0] < 0 and swipe.state == gesture.STATE_START:   # Swipe Right to Left (<-)
                         print "Swiped Left"
+
                     else:
                         pass    # do nothing
-
 
         if not (frame.hands.is_empty and frame.gestures().is_empty):
             print ""
@@ -157,7 +161,6 @@ def calc_position(x_pos, y_pos):
     print 'SCALED X: ' + str(scaled_x) + ',  SCALED Y: ' + str(scaled_y)
 
     # Move
-
     return scaled_x, scaled_y
 
 
